@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- PWA Setup -->
+    <meta name="theme-color" content="#1a1a1a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <title>Hustle Clock</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --accent-color: #ff4500; 
+            --accent-fade: rgba(255, 69, 0, 0.4);
+            --danger-color: #ff0000;
+            --bg-color: #1a1a1a;
+            --card-bg: #2d2d2d;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --shadow-light: 10px 10px 20px #0f0f10, -10px -10px 20px #3d3d3d;
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --toggle-bg: #404040;
+            --ticker-bg: #ff4500;
+            --ticker-text: #ffffff;
+        }
+
+        body.light-mode {
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --shadow-light: 10px 10px 20px #d1d9e6, -10px -10px 20px #ffffff;
+            --glass-border: rgba(255, 255, 255, 0.8);
+            --toggle-bg: #e0e0e0;
+            --ticker-bg: #ff4500;
+            --ticker-text: #ffffff;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; transition: background-color 0.3s, color 0.3s; -webkit-tap-highlight-color: transparent; }
+        
+        body { 
+            font-family: 'Poppins', sans-serif; 
+            background-color: var(--bg-color); 
+            color: var(--text-primary); 
+            display: flex; flex-direction: column; align-items: center; 
+            min-height: 100vh; overflow-x: hidden; user-select: none;
+        }
+
+        /* Install Button (Hidden by default) */
+        #installBtn {
+            display: none;
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: var(--accent-color); color: white; padding: 12px 30px;
+            border-radius: 30px; font-weight: bold; box-shadow: 0 0 20px var(--accent-color);
+            z-index: 5000; text-transform: uppercase; letter-spacing: 1px;
+            animation: bounce 2s infinite; cursor: pointer;
+        }
+        @keyframes bounce { 0%, 100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-10px); } }
+
+        /* Ticker */
+        .ticker-wrap {
+            position: fixed; top: 0; width: 100%; height: 35px;
+            background-color: var(--ticker-bg); color: var(--ticker-text);
+            overflow: hidden; z-index: 1000; display: flex; align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3); padding-top: env(safe-area-inset-top);
+        }
+        .ticker {
+            display: inline-block; white-space: nowrap;
+            animation: ticker 25s linear infinite;
+            font-family: 'Oswald', sans-serif; font-weight: 700; letter-spacing: 1px;
+            text-transform: uppercase; font-size: 0.9rem;
+        }
+        @keyframes ticker { 0% { transform: translate3d(100%, 0, 0); } 100% { transform: translate3d(-100%, 0, 0); } }
+
+        /* Container */
+        .container {
+            margin-top: 60px; background-color: var(--card-bg); padding: 30px; border-radius: 30px;
+            box-shadow: var(--shadow-light); width: 90%; max-width: 500px; position: relative;
+            margin-bottom: 80px; /* Space for scroll */
+        }
+        
+        /* Icons */
+        .icon-btn {
+            position: absolute; top: 20px; width: 40px; height: 40px;
+            background: var(--toggle-bg); border-radius: 50%; display: flex;
+            align-items: center; justify-content: center; cursor: pointer;
+            box-shadow: var(--shadow-light); z-index: 100;
+        }
+        .icon-btn svg { width: 20px; height: 20px; fill: var(--text-primary); }
+        .theme-switch { right: 20px; }
+        .edit-theme-btn { left: 20px; }
+
+        /* Clock Section */
+        .top-section { display: flex; flex-direction: column; align-items: center; gap: 15px; margin-top: 20px; margin-bottom: 20px; }
+        
+        .analog-clock {
+            width: 140px; height: 140px; border-radius: 50%; background: var(--card-bg);
+            box-shadow: var(--shadow-light); position: relative; display: flex; justify-content: center; align-items: center;
+            cursor: pointer; transition: transform 0.2s ease, box-shadow 0.3s ease;
+        }
+        .analog-clock.playing { animation: soundPulse 1s infinite alternate; box-shadow: 0 0 20px var(--accent-fade); }
+        @keyframes soundPulse { 0% { transform: scale(1); } 100% { transform: scale(1.03); } }
+        .analog-clock::after { content: '🔊'; font-size: 12px; position: absolute; bottom: 15px; opacity: 0.5; }
+        .analog-clock::before { content: ''; width: 8px; height: 8px; background: var(--accent-color); border-radius: 50%; z-index: 10; }
+        .hand { position: absolute; bottom: 50%; left: 50%; transform-origin: bottom; background: var(--text-primary); border-radius: 4px; transform: translateX(-50%); }
+        .hour-hand { height: 35px; width: 4px; z-index: 3; }
+        .min-hand { height: 50px; width: 3px; z-index: 2; background: var(--text-secondary); }
+        .sec-hand { height: 55px; width: 2px; background: var(--accent-color); z-index: 1; }
+
+        .digital-info { width: 100%; text-align: center; }
+        .casino-clock {
+            display: flex; justify-content: center; align-items: center;
+            font-family: 'Oswald', sans-serif; font-size: 3.5rem; font-weight: 700;
+            color: var(--accent-color); height: 70px; overflow: hidden; letter-spacing: -2px;
+        }
+        .digit-wrapper { display: inline-block; position: relative; height: 100%; width: 32px; text-align: center; }
+        .digit-value { display: block; position: absolute; width: 100%; height: 100%; top: 0; left: 0; }
+        .slide-up-animate { animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        @keyframes slideUp { 0% { transform: translateY(100%); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+        .colon { margin: 0 2px; padding-bottom: 10px; }
+
+        .countdown-display { font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; color: var(--danger-color); font-weight: bold; margin-top: 5px; animation: blinkFast 2s infinite; }
+        @keyframes blinkFast { 50% { opacity: 0.7; } }
+        .date-display { font-size: 1rem; color: var(--text-primary); font-weight: 500; opacity: 0.8; margin-top: 5px; }
+
+        /* Progress */
+        .progress-section { width: 100%; margin-bottom: 25px; }
+        .progress-group { margin-bottom: 15px; }
+        .progress-header { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; }
+        .blinking-text { animation: blinker 0.5s linear infinite; font-weight: bold; color: var(--accent-color); }
+        @keyframes blinker { 50% { opacity: 0.3; } }
+
+        .glass-tube {
+            width: 100%; height: 22px; background: rgba(100, 100, 100, 0.05); border-radius: 20px;
+            position: relative; overflow: hidden; backdrop-filter: blur(2px);
+            box-shadow: inset 0 3px 5px rgba(0,0,0,0.1); border: 1px solid var(--glass-border);
+        }
+        .liquid-fill { height: 100%; width: 0%; background: var(--accent-color); border-radius: 20px; position: relative; box-shadow: 0 0 15px var(--accent-color); }
+        .bubble { position: absolute; border-radius: 50%; background: rgba(255, 255, 255, 0.7); box-shadow: 0 0 5px rgba(255,255,255,1); animation: moveRight 1.5s linear infinite; }
+        @keyframes moveRight { 0% { transform: translateX(-10px) scale(0.5); opacity: 0; } 100% { transform: translateX(400px) scale(1.5); opacity: 0; } }
+
+        /* Motivation */
+        .motivation-box { text-align: center; margin-bottom: 20px; min-height: 40px; display: flex; align-items: center; justify-content: center; }
+        .quote-text { font-family: 'Oswald', sans-serif; font-size: 1.1rem; color: var(--text-primary); text-transform: uppercase; letter-spacing: 1px; animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Dots */
+        .month-section h4 { margin-bottom: 15px; color: var(--text-primary); font-size: 0.9rem; font-weight: 600; text-transform: uppercase; text-align: center; }
+        .dots-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; justify-content: center; }
+        .day-dot { width: 10px; height: 10px; border-radius: 50%; margin: auto; background-color: var(--accent-color); transition: all 0.3s ease; }
+        .day-dot.past { opacity: 0.2; } .day-dot.future { opacity: 0.6; }
+        .day-dot.today { width: 20px; height: 20px; background-color: var(--danger-color); color: #fff; font-weight: 700; font-size: 0.7rem; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 0 15px var(--danger-color); animation: firefly 1s infinite alternate; }
+        @keyframes firefly { 0% { box-shadow: 0 0 5px var(--danger-color); transform: scale(1); } 100% { box-shadow: 0 0 20px var(--danger-color); transform: scale(1.1); } }
+
+        /* Modals */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; display: none; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s; }
+        .modal-overlay.active { display: flex; opacity: 1; }
+        .modal-content { background: var(--card-bg); padding: 25px; border-radius: 20px; width: 85%; max-width: 350px; text-align: center; position: relative; border: 1px solid var(--accent-color); }
+        .modal-close-icon { position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; background: rgba(255,255,255,0.1); border-radius: 50%; color: var(--text-primary); font-weight: bold; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        input[type="color"] { border: none; width: 60px; height: 60px; cursor: pointer; background: none; }
+        .btn-action { margin-top: 15px; padding: 10px 25px; background: var(--accent-color); color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: 700; text-transform: uppercase; }
+        .calendar-wrapper { background: white; border-radius: 15px; overflow: hidden; color: #333; text-align: left; }
+        .spiral-header { background: var(--accent-color); padding: 15px; color: #fff; font-weight: bold; text-align: center; }
+        .cal-grid { padding: 10px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center; font-size: 0.9rem; }
+        .cal-date.active { background: var(--accent-color); color: white; border-radius: 50%; }
+
+    </style>
+</head>
+<body class="dark-mode">
+
+    <div id="installBtn">📲 INSTALL APP</div>
+
+    <audio id="clockAudio" loop>
+        <source src="https://github.com/linamolygit/My-videos/raw/refs/heads/main/slow-cinematic-clock-ticking-357979.mp3" type="audio/mpeg">
+    </audio>
+
+    <div class="ticker-wrap">
+        <div class="ticker">
+            ⚠ TIME IS MONEY &nbsp;&nbsp;•&nbsp;&nbsp; YOU ARE LOSING DOLLARS EVERY SECOND &nbsp;&nbsp;•&nbsp;&nbsp; YOUR COMPETITION IS WORKING RIGHT NOW &nbsp;&nbsp;•&nbsp;&nbsp; DON'T STOP &nbsp;&nbsp;•&nbsp;&nbsp; WAKE UP &nbsp;&nbsp;•&nbsp;&nbsp; TICK TOCK
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="icon-btn edit-theme-btn" onclick="openColorModal()"><svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></div>
+        <div class="icon-btn theme-switch" onclick="toggleTheme()"><svg id="theme-icon" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg></div>
+
+        <div class="top-section">
+            <div class="analog-clock" id="dialClock">
+                <div class="hand hour-hand" id="hourHand"></div>
+                <div class="hand min-hand" id="minHand"></div>
+                <div class="hand sec-hand" id="secHand"></div>
+            </div>
+            
+            <div class="digital-info">
+                <div class="casino-clock" id="casinoClock">
+                    <div class="digit-wrapper"><span class="digit-value" id="h1">0</span></div>
+                    <div class="digit-wrapper"><span class="digit-value" id="h2">0</span></div>
+                    <span class="colon">:</span>
+                    <div class="digit-wrapper"><span class="digit-value" id="m1">0</span></div>
+                    <div class="digit-wrapper"><span class="digit-value" id="m2">0</span></div>
+                    <span class="colon">:</span>
+                    <div class="digit-wrapper"><span class="digit-value" id="s1">0</span></div>
+                    <div class="digit-wrapper"><span class="digit-value" id="s2">0</span></div>
+                </div>
+                <div class="countdown-display" id="dayLeftDisplay">ENDS: 00h 00m</div>
+                <div class="date-display" id="dateDisplay">Loading...</div>
+            </div>
+        </div>
+
+        <div class="motivation-box"><div class="quote-text" id="quoteDisplay">EARN MONEY</div></div>
+
+        <div class="progress-section">
+            <div class="progress-group"><div class="progress-header"><span>Life (75y)</span><span id="lifePercent" class="blinking-text">0%</span></div><div class="glass-tube"><div class="liquid-fill" id="lifeBar" style="background:#ff0000;"></div></div></div>
+            <div class="progress-group"><div class="progress-header"><span>Year</span><span id="yearPercent" class="blinking-text">0%</span></div><div class="glass-tube"><div class="liquid-fill" id="yearBar"></div></div></div>
+            <div class="progress-group"><div class="progress-header"><span>Week</span><span id="weekPercent" class="blinking-text">0%</span></div><div class="glass-tube"><div class="liquid-fill" id="weekBar"></div></div></div>
+        </div>
+
+        <div class="month-section">
+            <h4 id="monthName">Month Progress</h4>
+            <div class="dots-grid" id="dotsGrid"></div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal-overlay" id="colorModal">
+        <div class="modal-content">
+            <h3>Panic Color</h3>
+            <input type="color" id="themeColorInput" onchange="changeThemeColor(this.value)"><br>
+            <button class="btn-action" onclick="closeColorModal()">SET</button>
+            <p style="margin-top:10px; font-size:0.8rem; cursor:pointer; text-decoration:underline;" onclick="resetToDailyColor()">Reset</p>
+        </div>
+    </div>
+    <div class="modal-overlay" id="calendarModal">
+        <div class="modal-content" style="background:transparent; box-shadow:none; padding:0;">
+            <div class="modal-close-icon" onclick="closeCalendarModal()">×</div>
+            <div class="calendar-wrapper" onclick="event.stopPropagation()">
+                <div class="spiral-header"><div class="cal-month" id="calMonthDisplay">Jan 2024</div></div>
+                <div class="cal-grid" id="calGrid"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // PWA Install Logic
+        let deferredPrompt;
+        const installBtn = document.getElementById('installBtn');
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installBtn.style.display = 'block';
+        });
+        installBtn.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') installBtn.style.display = 'none';
+                deferredPrompt = null;
+            }
+        });
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js'); });
+        }
+
+        /* --- Existing Logic --- */
+        const root = document.documentElement;
+        const dailyColors = ["#FF4500", "#FF0000", "#FF6347", "#D2691E", "#DC143C", "#FF8C00", "#B22222"];
+        let targetYearPct = 0, targetWeekPct = 0;
+
+        function initThemeColor() { const saved = localStorage.getItem('themeColor'); applyColor(saved || dailyColors[new Date().getDay()]); }
+        function applyColor(hex) {
+            root.style.setProperty('--accent-color', hex);
+            root.style.setProperty('--accent-fade', hex + '4D');
+            root.style.setProperty('--ticker-bg', hex);
+            document.getElementById('themeColorInput').value = hex;
+        }
+        function changeThemeColor(hex) { applyColor(hex); localStorage.setItem('themeColor', hex); }
+        function resetToDailyColor() { localStorage.removeItem('themeColor'); initThemeColor(); closeColorModal(); }
+
+        const audio = document.getElementById('clockAudio');
+        const dialClock = document.getElementById('dialClock');
+        let isAudioPlaying = false;
+        dialClock.addEventListener('click', () => {
+            if (isAudioPlaying) { audio.pause(); isAudioPlaying = false; dialClock.classList.remove('playing'); } 
+            else { audio.play().then(() => { isAudioPlaying = true; dialClock.classList.add('playing'); }).catch(e=>console.log(e)); }
+        });
+
+        const quotes = ["TIME IS MONEY", "NO SLEEP", "HUSTLE", "WIN NOW", "DON'T STOP", "TICK TOCK", "GET RICH"];
+        let quoteIndex = 0;
+        setInterval(() => {
+            const d = document.getElementById('quoteDisplay');
+            d.style.animation = 'none'; d.offsetHeight; d.style.animation = 'fadeIn 0.5s ease-in';
+            d.innerText = quotes[quoteIndex]; quoteIndex = (quoteIndex + 1) % quotes.length;
+        }, 4000);
+
+        let oldDigits = ['0','0','0','0','0','0'];
+        function updateClock() {
+            const now = new Date();
+            const sec = now.getSeconds(), min = now.getMinutes(), hour = now.getHours();
+            
+            document.getElementById('secHand').style.transform = `translateX(-50%) rotate(${((sec/60)*360)}deg)`;
+            document.getElementById('minHand').style.transform = `translateX(-50%) rotate(${((min/60)*360) + ((sec/60)*6)}deg)`;
+            document.getElementById('hourHand').style.transform = `translateX(-50%) rotate(${((hour/12)*360) + ((min/60)*30)}deg)`;
+
+            let h = hour % 12 || 12;
+            const newDigits = [
+                (h<10?"0"+h:""+h)[0], (h<10?"0"+h:""+h)[1],
+                (min<10?"0"+min:""+min)[0], (min<10?"0"+min:""+min)[1],
+                (sec<10?"0"+sec:""+sec)[0], (sec<10?"0"+sec:""+sec)[1]
+            ];
+            const ids = ['h1', 'h2', 'm1', 'm2', 's1', 's2'];
+            newDigits.forEach((d, i) => {
+                const el = document.getElementById(ids[i]);
+                if (d !== oldDigits[i] || (i===4 && sec%5===0)) {
+                    const n = el.cloneNode(true); n.innerText = d; n.classList.add('slide-up-animate');
+                    el.parentNode.replaceChild(n, el); setTimeout(()=>n.classList.remove('slide-up-animate'),500);
+                }
+            });
+            oldDigits = newDigits;
+
+            const timeLeft = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59) - now;
+            document.getElementById('dayLeftDisplay').innerText = `ENDS: ${Math.floor((timeLeft/(1000*60*60))%24)}h ${Math.floor((timeLeft/(1000*60))%60)}m`;
+            document.getElementById('dateDisplay').innerText = now.toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'}).toUpperCase();
+            
+            const start = new Date(now.getFullYear(), 0, 0);
+            targetYearPct = ((Math.floor((now - start) / (1000 * 60 * 60 * 24)) / 365) * 100).toFixed(1);
+            targetWeekPct = (((now.getDay() * 24 * 60) + (now.getHours() * 60) + now.getMinutes()) / (7 * 24 * 60) * 100).toFixed(1);
+            
+            document.getElementById('yearPercent').innerText = `${targetYearPct}%`;
+            document.getElementById('weekPercent').innerText = `${targetWeekPct}%`;
+            document.getElementById('lifePercent').innerText = `35% DEAD`;
+        }
+
+        function loopAnim() {
+            const y = document.getElementById('yearBar'), w = document.getElementById('weekBar'), l = document.getElementById('lifeBar');
+            y.style.transition='none'; w.style.transition='none'; l.style.transition='none';
+            y.style.width='0%'; w.style.width='0%'; l.style.width='0%';
+            setTimeout(()=>{
+                y.style.transition='width 1.5s ease-out'; w.style.transition='width 1.5s ease-out'; l.style.transition='width 1.5s ease-out';
+                y.style.width=targetYearPct+'%'; w.style.width=targetWeekPct+'%'; l.style.width='35%';
+            },100);
+            spawnBubbles();
+        }
+        function spawnBubbles() { 
+            ['yearBar','weekBar','lifeBar'].forEach(id => {
+                const b = document.createElement('div'); b.className='bubble';
+                b.style.width=b.style.height=(Math.random()*8+4)+'px';
+                b.style.top=Math.random()*80+'%'; b.style.left='-10px';
+                document.getElementById(id).appendChild(b); setTimeout(()=>b.remove(),2000);
+            });
+        }
+        
+        function genDots() {
+            const now = new Date(), grid = document.getElementById('dotsGrid');
+            grid.innerHTML = '';
+            for(let i=1; i<=new Date(now.getFullYear(), now.getMonth()+1, 0).getDate(); i++) {
+                const d = document.createElement('div'); d.className='day-dot ' + (i===now.getDate()?'today':(i<now.getDate()?'past':'future'));
+                if(i===now.getDate()){ d.innerText=i; d.onclick=openCalendarModal; }
+                grid.appendChild(d);
+            }
+        }
+
+        function openColorModal() { document.getElementById('colorModal').classList.add('active'); }
+        function closeColorModal() { document.getElementById('colorModal').classList.remove('active'); }
+        function openCalendarModal() { renderCal(); document.getElementById('calendarModal').classList.add('active'); }
+        function closeCalendarModal() { document.getElementById('calendarModal').classList.remove('active'); }
+        function renderCal() {
+            const now = new Date(), grid = document.getElementById('calGrid'); grid.innerHTML='';
+            document.getElementById('calMonthDisplay').innerText = now.toLocaleString('default',{month:'long',year:'numeric'});
+            for(let i=0;i<new Date(now.getFullYear(),now.getMonth(),1).getDay();i++) grid.appendChild(document.createElement('div'));
+            for(let i=1;i<=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();i++){
+                const c = document.createElement('div'); c.className='cal-date'; c.innerText=i;
+                if(i===now.getDate()) c.classList.add('active'); grid.appendChild(c);
+            }
+        }
+        function toggleTheme() { document.body.classList.toggle('light-mode'); }
+
+        initThemeColor(); genDots();
+        setInterval(updateClock,1000); updateClock();
+        setInterval(loopAnim,5000); loopAnim();
+    </script>
+</body>
+</html>
