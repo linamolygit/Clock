@@ -1,19 +1,13 @@
 {
-  "name": "Hustle Clock",
-  "short_name": "Hustle",
+  "name": "Panic Mode Dashboard Pro",
+  "short_name": "PanicDash",
   "start_url": "index.html",
   "display": "standalone",
-  "background_color": "#1a1a1a",
-  "theme_color": "#ff4500",
-  "orientation": "portrait",
+  "background_color": "#18191a",
+  "theme_color": "#ff8c00",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/2928/2928750.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "https://cdn-icons-png.flaticon.com/512/2928/2928750.png",
+      "src": "https://cdn-icons-png.flaticon.com/512/3563/3563395.png",
       "sizes": "512x512",
       "type": "image/png"
     }
